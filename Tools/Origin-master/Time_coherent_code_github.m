@@ -100,12 +100,22 @@ while (Rpeaks(c_int,1)<(BLengthD2)) || (Rpeaks(c_int,2)<(BLengthD2)) || (Rpeaks(
 end
 
 %% Exclude the last if we do not have a complete last beat
-
-if abs(Rpeaks(end-1,1)-Total_samples)<(BLengthD2) || abs(Rpeaks(end-1,2)-Total_samples)<(BLengthD2) || abs(Rpeaks(end-1,3)-Total_samples)<(BLengthD2) 
-    c_fin=2;
-else
-    c_fin=1;
+%Poprawka, bo czêsto Rpeaks ma tylko jeden row czego ta funkcja nie
+%obs³ugiwa³a
+if size(Rpeaks,1)>1 
+    if abs(Rpeaks(end-1,1)-Total_samples)<(BLengthD2) || abs(Rpeaks(end-1,2)-Total_samples)<(BLengthD2) || abs(Rpeaks(end-1,3)-Total_samples)<(BLengthD2) 
+        c_fin=2;
+    else
+        c_fin=1;
+    end
+else 
+    if abs(Rpeaks(1)-Total_samples)<(BLengthD2) || abs(Rpeaks(2)-Total_samples)<(BLengthD2) || abs(Rpeaks(3)-Total_samples)<(BLengthD2) 
+        c_fin=2;
+    else
+        c_fin=1;
+    end
 end
+        
 
 %% Calculate the absolute maximum first derivative adjacent to each R peak on the X lead.
 
@@ -118,9 +128,11 @@ end
 
 
 %% Separate the each beat in the X, Y, and Z leads. Each beat is centered on Maximum dv/dt detected.
-
-while (I_dv(c_int)<BLengthD2)
-        c_int=c_int+1;
+%To samo trzeba by³o uwzglêdniæ w tym miejscu
+if R_no>1
+    while (I_dv(c_int)<BLengthD2)
+            c_int=c_int+1;
+    end
 end
 
 

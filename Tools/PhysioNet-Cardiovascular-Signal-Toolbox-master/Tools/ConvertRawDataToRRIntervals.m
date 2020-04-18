@@ -56,16 +56,22 @@ ECG_RawData = ECG_RawData(:,1); % If more the one leads use only the first
 % QRS Dection 1 - jqrs
 jqrs_ann = run_qrsdet_by_seg(ECG_RawData,HRVparams);
 
+%nieuzywane na razie - komentuje
 % QRS Detection 2 - sqrs (need single channel of ECG in digital values)
-sqrs_ann = run_sqrs(ECG_RawData/GainQrsDetect,HRVparams,0);
+% sqrs_ann = run_sqrs(ECG_RawData/GainQrsDetect,HRVparams,0);
 
+%nieuzywane na razie - komentuje
 % QRS Detection 3 - wqrs
-wqrs_ann = wqrsm_fast(ECG_RawData*GainQrsDetect,HRVparams.Fs);
+% wqrs_ann = wqrsm_fast(ECG_RawData*GainQrsDetect,HRVparams.Fs);
 
 % QRS SQI analysis
-[SQIjs, StartSQIwindows_js] = bsqi(jqrs_ann(:),sqrs_ann(:),HRVparams);
-[SQIjw, StartSQIwindows_jw] = bsqi(jqrs_ann(:),wqrs_ann(:),HRVparams);
-
+% [SQIjs, StartSQIwindows_js] = bsqi(jqrs_ann(:),sqrs_ann(:),HRVparams);
+% [SQIjw, StartSQIwindows_jw] = bsqi(jqrs_ann(:),wqrs_ann(:),HRVparams);
+%na razie tego nie uzywamy wiec komentuje funkcje bsqi
+SQIjs = [];
+StartSQIwindows_js = [];
+SQIjw = [];
+StartSQIwindows_jw = [];
 
 % Translate anotations to rr intervals
 rr = diff(jqrs_ann./HRVparams.Fs);
