@@ -1,6 +1,6 @@
 function model = load_12ECG_model()
 
-        filename='finalized_model_BioS_18-04-2020.mat';
+        filename='finalized_model_BioS_23-04-2020.mat';
         A=load(filename);
         %model=A.model;
         

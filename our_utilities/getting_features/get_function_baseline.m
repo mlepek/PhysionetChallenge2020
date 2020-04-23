@@ -27,7 +27,7 @@ HRVparams.windowlength = floor(Total_time);
     i = lead_num;      
     ALL = [ECG12filt(i,:);ECG12filt(i,:);ECG12filt(i,:)]';
     VecMag = vecnorm(ALL');
-    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
 %     sqi = [tSQI', SQIvalue'];
     ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
     wavedet_config.setup.wavedet.QRS_detection_only = 0;

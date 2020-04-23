@@ -32,7 +32,7 @@ for j=1:length(leadsV1V2V3)
     V1V2V3 = [ECG12filt(i,:);ECG12filt(i,:);ECG12filt(i,:)]';
     VecMag = vecnorm(V1V2V3');
     try
-        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
          sqi = [tSQI', SQIvalue'];
          ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
         wavedet_config.setup.wavedet.QRS_detection_only = 0;
@@ -70,7 +70,7 @@ for j=1:length(leadsIaVLV5V6)
     IaVLV5V6 = [ECG12filt(i,:);ECG12filt(i,:);ECG12filt(i,:)]';
     VecMag = vecnorm(IaVLV5V6');
     try
-        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
         sqi = [tSQI', SQIvalue'];
         ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
         wavedet_config.setup.wavedet.QRS_detection_only = 0;
@@ -111,7 +111,7 @@ end
 VecMag = vecnorm(XYZLeads');
 try
     % Convert ECG waveform in rr intervals
-    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
     sqi = [tSQI', SQIvalue'];
 
     % Find fiducial points using ECGKit
@@ -130,7 +130,7 @@ end
 V1 = [ECG12filt(7,:);ECG12filt(7,:);ECG12filt(7,:)]';
 VecMag = vecnorm(V1');
 try
-    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+    [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
     %sqi = [tSQI', SQIvalue'];
     ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
     wavedet_config.setup.wavedet.QRS_detection_only = 0;
@@ -166,7 +166,7 @@ for j=1:length(leadsIV5V6)
     IV5V6 = [ECG12filt(i,:);ECG12filt(i,:);ECG12filt(i,:)]';
     VecMag = vecnorm(IV5V6');
     try
-        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
        % sqi = [tSQI', SQIvalue'];
         ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
         wavedet_config.setup.wavedet.QRS_detection_only = 0;
@@ -195,7 +195,7 @@ for j=1:length(leadsV5V6)
     V5V6 = [ECG12filt(i,:);ECG12filt(i,:);ECG12filt(i,:)]';
     VecMag = vecnorm(V5V6');
     try
-        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+        [t, rr, jqrs_ann, SQIvalue , tSQI] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
         %sqi = [tSQI', SQIvalue'];
         ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
         wavedet_config.setup.wavedet.QRS_detection_only = 0;

@@ -1,0 +1,5 @@
+- głowna funkcja do obliczania anotacji z wszystkich 
+odprowadzeń: hierarchiczny_12.m
+- pozostałe skrypty zawirają funkcje pomocnicze
+- gauss_r.m nie jest moją funkcją
+- algorymy należy wywoływać w folderze z sygnałami

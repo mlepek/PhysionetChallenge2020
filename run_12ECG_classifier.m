@@ -13,7 +13,11 @@ function [score, label] = run_12ECG_classifier(data,header_data,classes, model)
     %[~,idx] = max (score);
     %label(idx)=1;
     
-    % model BioS 18-04-2020, 56 manual features, shallow nnet
+    % model BioS 23-04-2020, 57 manual features, shallow nnet
+    
+    % changing Inf and -Inf to NaN
+    features( features == Inf ) = NaN;
+    features( features == -Inf ) = NaN;
     
     % normalizing features
     features = (features - model.meanToNorm)./model.stdToNorm;

@@ -1,4 +1,5 @@
-function [t,rr,jqrs_ann,SQIjw, StartSQIwindows_jw] = ConvertRawDataToRRIntervals(ECG_RawData ,HRVparams, subjectID)
+function [t,rr,jqrs_ann,SQIjw, StartSQIwindows_jw] = ConvertRawDataToRRIntervals(ECG_RawData ,HRVparams, subjectID, ECG12filt)
+% function [t,rr,hann,SQIjw, StartSQIwindows_jw] = ConvertRawDataToRRIntervals(ECG_RawData ,HRVparams, subjectID, ECG12filt)
 %   [t,rr,jqrs_ann,sqijs, StartIdxSQIwindows_jw] = ConvertRawDataToRRIntervals(ECG_RawData ,HRVparams, subjectID)  
 %
 %	OVERVIEW:
@@ -51,10 +52,34 @@ if size(ECG_RawData,1)<size(ECG_RawData,2)
     ECG_RawData = ECG_RawData';
 end
 
-ECG_RawData = ECG_RawData(:,1); % If more the one leads use only the first
 
+% ECG12filt = ECG12filt_cleaned';
+
+% ECG12filt(ECG12filt>2*10^6)=0;
+% QRS Detection - Tosi skrypt
+jqrs_ann = hierarchiczny_12(ECG12filt,HRVparams.Fs);
+% jqrs_ann_T = jqrs_ann';
+% jqrs_ann = jqrs_ann';
+% ECG_RawData = ECG_RawData(:,1); % If more the one leads use only the first
+
+% ECG_RawData = ECG_RawData - movmedian(ECG_RawData,HRVparams.Fs/6);
 % QRS Dection 1 - jqrs
-jqrs_ann = run_qrsdet_by_seg(ECG_RawData,HRVparams);
+% ECG_RawData(ECG_RawData>2*10^6)=0;
+
+%troche niewydajne - wykorzystuje znow liczenie Kors ale ze zmieniona
+%macierza ECG12filt z ucietymi T
+
+
+% jqrs_ann = run_qrsdet_by_seg(ECG_RawData,HRVparams);
+
+% clf
+% figure(23)
+% hold on;
+% plot(ECG12filt(:,1));
+% plot(ECG_RawData);
+% % plot(jqrs_ann_T,ECG12filt(jqrs_ann_T,1),'r.','MarkerSize',20);
+% plot(jqrs_ann,ECG_RawData(jqrs_ann),'g.','MarkerSize',20);
+% hold off;
 
 %nieuzywane na razie - komentuje
 % QRS Detection 2 - sqrs (need single channel of ECG in digital values)
@@ -68,6 +93,7 @@ jqrs_ann = run_qrsdet_by_seg(ECG_RawData,HRVparams);
 % [SQIjs, StartSQIwindows_js] = bsqi(jqrs_ann(:),sqrs_ann(:),HRVparams);
 % [SQIjw, StartSQIwindows_jw] = bsqi(jqrs_ann(:),wqrs_ann(:),HRVparams);
 %na razie tego nie uzywamy wiec komentuje funkcje bsqi
+
 SQIjs = [];
 StartSQIwindows_js = [];
 SQIjw = [];
@@ -76,6 +102,8 @@ StartSQIwindows_jw = [];
 % Translate anotations to rr intervals
 rr = diff(jqrs_ann./HRVparams.Fs);
 t = jqrs_ann(2:end)./HRVparams.Fs;
+% rr = diff(hann./HRVparams.Fs);
+% t = hann(2:end)./HRVparams.Fs;
 
 %%  Export Annotations as ATR files
 

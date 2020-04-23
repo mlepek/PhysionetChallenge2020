@@ -27,27 +27,27 @@
 % spe³niony przynajmniej 1 raz.
 
 
-function [PACfeatures, PVCfeatures] = get_function_Pater( XYZLeads, sig2, Fs,header_data)
+function [PACfeatures, PVCfeatures] = get_function_Pater( XYZLeads, sig2, Fs,header_data,ECG12filt)
 
 % fiducial points
 sigX = XYZLeads(:,1)'; sigY = XYZLeads(:,2)'; sigZ = XYZLeads(:,3)';
 try
-    Fid_pts_2chann = fiducial_points(sig2, header_data); % for II lead
+    Fid_pts_2chann = fiducial_points(sig2, header_data,ECG12filt); % for II lead
 catch
     Fid_pts_2chann = [];
 end
 try
-    Fid_pts_X = fiducial_points(sigX, header_data); % for X lead
+    Fid_pts_X = fiducial_points(sigX, header_data,ECG12filt); % for X lead
 catch
     Fid_pts_X = [];
 end
 try
-    Fid_pts_Y = fiducial_points(sigY, header_data); % for Y lead
+    Fid_pts_Y = fiducial_points(sigY, header_data,ECG12filt); % for Y lead
 catch
     Fid_pts_Y = [];
 end
 try
-    Fid_pts_Z = fiducial_points(sigZ, header_data); % for Z lead
+    Fid_pts_Z = fiducial_points(sigZ, header_data,ECG12filt); % for Z lead
 catch
     Fid_pts_Z = [];
     
@@ -181,7 +181,7 @@ end
 %     (0.90*(RRiplus1+RRi)/2) |  RRiminus1<= (1.10*(RRiplus1+RRi)/2)));
 end
 
-function Fid_pts_sig = fiducial_points(ECG, header_data)
+function Fid_pts_sig = fiducial_points(ECG, header_data,ECG12filt)
 % input:
 % ECG - ecg signal (one lead signal) for example ECG12filt(1,:)
 % header_data
@@ -200,7 +200,7 @@ HRVparams.windowlength = floor(Total_time);
 sig = [ECG;ECG;ECG]';
 VecMag = vecnorm(sig');
 
-[~, ~, jqrs_ann, ~ , ~] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording);
+[~, ~, jqrs_ann, ~ , ~] = ConvertRawDataToRRIntervals(VecMag, HRVparams, recording,ECG12filt');
 %sqi = [tSQI', SQIvalue'];
 ECG_header.nsig = 1; ECG_header.freq = Fs; ECG_header.nsamp = length(VecMag);
 wavedet_config.setup.wavedet.QRS_detection_only = 0;
