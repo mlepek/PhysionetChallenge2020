@@ -56,6 +56,8 @@ for i = 1:num_files
     
 end
 
+all_signals_matrix = all_signals_matrix(:,1:iter);
+Labels_hotmatrix = Labels_hotmatrix(:,1:iter);
 disp('Training model..')
 
 % label=zeros(num_files,num_classes);
