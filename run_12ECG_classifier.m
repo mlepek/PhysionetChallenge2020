@@ -1,14 +1,16 @@
 function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_model)
 
-        tline = fgetl(header_data);
-        tmp_str = strsplit(tline,' ');
+        %tline = fgetl(header_data);
+        %tmp_str = strsplit(tline,' ');
+        tmp_str = strsplit(header_data{1}, ' ');
 %         recording_label = tmp_str{1};   
         fs = str2num(tmp_str{3});
 
 
+    dlnet1 = loaded_model.model;
 	%model = loaded_model.model;
-	%classes = loaded_model.classes;
-    %num_classes = length(classes);
+	classes = loaded_model.classes;
+    num_classes = length(classes);
     %label = zeros([1,num_classes]);
     %score = ones([1,num_classes]);
     
@@ -28,7 +30,8 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     % median filter to remove bw
     for ii=1:12
         ECG12filt(ii,:) = movmean(data(ii,:)', 5);
-    end    ECG12filt2 = ECG12filt;
+    end
+    ECG12filt2 = ECG12filt;
     
     for iii=1:size(ECG12filt,1)
         ECG12filt2(iii,:) = ECG12filt(iii,:) - movmedian(ECG12filt(iii,:), 50);
@@ -67,6 +70,8 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     
     score = extractdata(dlYPred_concat_train);
     label =  YPred_Train_toPerformance;
+    
+    classes = cellstr(num2str(classes)); % to potrzebne bo driver wymaga tablicy cell
     
     %score = mnrval(model,features);		
     %[~,idx] = max (score);

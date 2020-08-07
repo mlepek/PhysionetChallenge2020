@@ -11,7 +11,7 @@ for f = dir(input_directory)'
 end
 
 % read number of unique classes
-% classes = get_classes(input_directory,input_files);
+ %classes_to_save = get_classes(input_directory,input_files); 
 classes_file = importfile('./dx_mapping_scored.csv');
 classes = classes_file.SNOMEDCTCode; %kody klas
 % classes = {};
@@ -122,7 +122,7 @@ layers = [
     reluLayer("Name","relu_2")
     maxPooling2dLayer([2,2],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_1")
+    %dropoutLayer(0.1,"Name","dropout_1")
     
     convolution2dLayer(3,16,'Padding','same',"Name","conv_3")
     batchNormalizationLayer("Name","batchnorm_3")
@@ -132,7 +132,7 @@ layers = [
     reluLayer("Name","relu_4")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_2",'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_2")
+    %dropoutLayer(0.1,"Name","dropout_2")
     
     convolution2dLayer(3,32,'Padding','same',"Name","conv_5")
     batchNormalizationLayer("Name","batchnorm_5")
@@ -142,7 +142,7 @@ layers = [
     reluLayer("Name","relu_6")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_3",'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_3")
+    %dropoutLayer(0.1,"Name","dropout_3")
     
     convolution2dLayer(3,64,'Padding','same',"Name","conv_7")
     batchNormalizationLayer("Name","batchnorm_7")
@@ -151,7 +151,7 @@ layers = [
     batchNormalizationLayer("Name","batchnorm_8")
     reluLayer("Name","relu_8")
     
-    dropoutLayer(0.1,"Name","dropout_4")
+    %dropoutLayer(0.1,"Name","dropout_4")
     %{
     convolution2dLayer(3,128,'Padding','same',"Name","conv_9")
     batchNormalizationLayer("Name","batchnorm_9")
@@ -190,7 +190,7 @@ executionEnvironment = "cpu";
 numHiddenDimension = 27;
 l2Regularization = 0.06; % 0.06 wypracowana z poprzedniej fazy
 
-labelThreshold = 0.6;
+labelThreshold = 0.5;
 
 velocity1 = [];
 numObservations = size(YTrain,2);
@@ -396,7 +396,7 @@ save_12_ECG_model(dlnet1,output_directory,classes);
 end
 function save_12_ECG_model(model,output_directory,classes)
 % Save results.
-tmp_file = 'finalized_model.mat';
+tmp_file = 'finalized_model_entry_official_1.mat';
 filename=fullfile(output_directory,tmp_file);
 save(filename,'model','classes','-v7.3');
 
