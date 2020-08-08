@@ -12,8 +12,36 @@ end
 
 % read number of unique classes
  %classes_to_save = get_classes(input_directory,input_files); 
-classes_file = importfile('./dx_mapping_scored.csv');
-classes = classes_file.SNOMEDCTCode; %kody klas
+%classes_file = importfile('./dx_mapping_scored.csv'); % to sie
+%wywrocilo podczas processingu entry
+%classes = classes_file.SNOMEDCTCode; %kody klas
+classes = [270492004;
+           164889003;
+           164890007;
+           426627000;
+           713427006;
+           713426002;
+           445118002;
+            39732003;
+           164909002;
+           251146004;
+           698252002;
+            10370003;
+           284470004;
+           427172004;
+           164947007;
+           111975006;
+           164917005;
+            47665007;
+            59118001;
+           427393009;
+           426177001;
+           426783006;
+           427084000;
+            63593006;
+           164934002;
+            59931005;
+            17338001];
 % classes = {};
 % for i=1:27
 %     classes{i} = classes_temp(i);
@@ -180,7 +208,7 @@ dlnet1 = dlnetwork(lgraph);
 
 %% Specify the training options
 
-numEpochs = 30;
+numEpochs = 1;
 miniBatchSize = 1024;
 epsilon=0.001;
 learnRate = 0.001;
