@@ -225,12 +225,12 @@ numObservations = size(YTrain,2);
 averageSqGrad1=[];
 averageGrad1=[];
 
-plots = "training-progress";
+%plots = "training-progress";
 
 numIterationsPerEpoch = floor(numObservations/miniBatchSize);
 validationFrequency = 3 * numIterationsPerEpoch;
 
-
+%{
 if plots == "training-progress"
     figure
     
@@ -260,12 +260,15 @@ if plots == "training-progress"
     grid on
     grid(gca,'minor')
 end
+%}
 
 iteration = 0;
 start = tic;
 numClasses = 27;
 % Loop over epochs.
 for epoch = 1:numEpochs
+    %disp(epoch)
+    
     % Shuffle data.
     idx = randperm(size(YTrain,2));
     XTrain1 = XTrain1(:,:,:,idx);
@@ -275,6 +278,7 @@ for epoch = 1:numEpochs
     % Loop over mini-batches.
     for i = 1:numIterationsPerEpoch
         iteration = iteration + 1;
+        %disp(iteration)
         
         % Read mini-batch of data and convert the labels to dummy
         % variables.
@@ -324,6 +328,7 @@ for epoch = 1:numEpochs
         %         drawnow
         
         % Display the training progress.
+        %{
         if plots == "training-progress"
             subplot(2,1,1)
             D = duration(0,0,toc(start),'Format','hh:mm:ss');
@@ -410,6 +415,7 @@ for epoch = 1:numEpochs
             %         end
             %     end
         end
+        %}
         
         %
         % model = mnrfit(features,label,'model','hierarchical');
