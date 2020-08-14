@@ -71,6 +71,10 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     score = extractdata(dlYPred_concat_train);
     label =  YPred_Train_toPerformance;
     
+    % upewnienie sie ze scores i label to wektory wierszowe
+    score = score(:)';
+    label = label(:)';
+    
     classes = cellstr(num2str(classes)); % to potrzebne bo driver wymaga tablicy cell
     
     %score = mnrval(model,features);		

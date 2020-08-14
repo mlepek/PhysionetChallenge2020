@@ -208,7 +208,7 @@ dlnet1 = dlnetwork(lgraph);
 
 %% Specify the training options
 
-numEpochs = 1;
+numEpochs = 30;
 miniBatchSize = 1024;
 epsilon=0.001;
 learnRate = 0.001;
