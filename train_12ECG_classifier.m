@@ -143,40 +143,40 @@ layers = [
     imageInputLayer([size(X_Train_Input,1) size(X_Train_Input,2) 1],"Name","imageinput","Mean",mean(X_Train_Input,4))
     
     convolution2dLayer([3,3],8,'Padding','same',"Name","conv_1")
-    batchNormalizationLayer("Name","batchnorm_1")
+    %batchNormalizationLayer("Name","batchnorm_1")
     reluLayer("Name","relu_1")
     convolution2dLayer([3,3],8,'Padding','same',"Name","conv_2")
-    batchNormalizationLayer("Name","batchnorm_2")
+    %batchNormalizationLayer("Name","batchnorm_2")
     reluLayer("Name","relu_2")
     maxPooling2dLayer([2,2],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
     
     %dropoutLayer(0.1,"Name","dropout_1")
     
     convolution2dLayer(3,16,'Padding','same',"Name","conv_3")
-    batchNormalizationLayer("Name","batchnorm_3")
+    %batchNormalizationLayer("Name","batchnorm_3")
     reluLayer("Name","relu_3")
     convolution2dLayer(3,16,'Padding','same',"Name","conv_4")
-    batchNormalizationLayer("Name","batchnorm_4")
+    %batchNormalizationLayer("Name","batchnorm_4")
     reluLayer("Name","relu_4")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_2",'Padding','same')
     
     %dropoutLayer(0.1,"Name","dropout_2")
     
     convolution2dLayer(3,32,'Padding','same',"Name","conv_5")
-    batchNormalizationLayer("Name","batchnorm_5")
+    %batchNormalizationLayer("Name","batchnorm_5")
     reluLayer("Name","relu_5")
     convolution2dLayer(3,32,'Padding','same',"Name","conv_6")
-    batchNormalizationLayer("Name","batchnorm_6")
+    %batchNormalizationLayer("Name","batchnorm_6")
     reluLayer("Name","relu_6")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_3",'Padding','same')
     
     %dropoutLayer(0.1,"Name","dropout_3")
     
     convolution2dLayer(3,64,'Padding','same',"Name","conv_7")
-    batchNormalizationLayer("Name","batchnorm_7")
+    %batchNormalizationLayer("Name","batchnorm_7")
     reluLayer("Name","relu_7")
     convolution2dLayer(3,64,'Padding','same',"Name","conv_8")
-    batchNormalizationLayer("Name","batchnorm_8")
+    %batchNormalizationLayer("Name","batchnorm_8")
     reluLayer("Name","relu_8")
     
     %dropoutLayer(0.1,"Name","dropout_4")

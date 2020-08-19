@@ -1,5 +1,7 @@
 function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_model)
 
+    %persistent mp;
+
         %tline = fgetl(header_data);
         %tmp_str = strsplit(tline,' ');
         tmp_str = strsplit(header_data{1}, ' ');
@@ -105,7 +107,10 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     label = all_111_labels;
     classes = all_111_classes;
     classes = cellstr(num2str(classes));
+    classes = strtrim(classes);
     
+    
+    %mp = [mp; label];
     
 end
 
