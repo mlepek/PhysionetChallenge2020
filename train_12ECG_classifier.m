@@ -49,12 +49,12 @@ classes = [270492004;
 
 num_classes = length(classes);
 num_files = length(input_files);
-Total_data=cell(1,num_files);
-Total_header=cell(1,num_files);
+%Total_data=cell(1,num_files);
+%Total_header=cell(1,num_files);
 Labels_hotmatrix = zeros(num_classes,num_files);
 %PARAMETRY SYGNALOW
 fs_fixed = 100; %docelowe sample frequency
-max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
+max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 30 s
 
 % Iterate over files.
 all_signals_matrix = zeros(12*max_length,num_files,'int16'); %inicjalizacja macierzy z sygnalami do eksportu
@@ -72,13 +72,13 @@ for i = 1:num_files
     [data,hea_data] = load_challenge_data(tmp_input_file);
     if(sum(single_recording_labels==1)>0)
         %Preprocessing of the data before aggregation to one matrix
-        all_signals_matrix = preprocessing_before_aggregation(data, fs, all_signals_matrix, iter);
+        all_signals_matrix = preprocessing_before_aggregation(data, fs, all_signals_matrix, iter, max_length);
         
         
         Labels_hotmatrix(:,iter) = single_recording_labels';
         
-        Total_data{i}=data;
-        Total_header{i}=hea_data;
+        %Total_data{i}=data;
+        %Total_header{i}=hea_data;
         iter = iter + 1;
     end
     
@@ -150,7 +150,7 @@ layers = [
     reluLayer("Name","relu_2")
     maxPooling2dLayer([2,2],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
     
-    %dropoutLayer(0.1,"Name","dropout_1")
+    dropoutLayer(0.1,"Name","dropout_1")
     
     convolution2dLayer(3,16,'Padding','same',"Name","conv_3")
     %batchNormalizationLayer("Name","batchnorm_3")
@@ -160,7 +160,7 @@ layers = [
     reluLayer("Name","relu_4")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_2",'Padding','same')
     
-    %dropoutLayer(0.1,"Name","dropout_2")
+    dropoutLayer(0.1,"Name","dropout_2")
     
     convolution2dLayer(3,32,'Padding','same',"Name","conv_5")
     %batchNormalizationLayer("Name","batchnorm_5")
@@ -170,7 +170,7 @@ layers = [
     reluLayer("Name","relu_6")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_3",'Padding','same')
     
-    %dropoutLayer(0.1,"Name","dropout_3")
+    dropoutLayer(0.1,"Name","dropout_3")
     
     convolution2dLayer(3,64,'Padding','same',"Name","conv_7")
     %batchNormalizationLayer("Name","batchnorm_7")
@@ -179,7 +179,7 @@ layers = [
     %batchNormalizationLayer("Name","batchnorm_8")
     reluLayer("Name","relu_8")
     
-    %dropoutLayer(0.1,"Name","dropout_4")
+    dropoutLayer(0.1,"Name","dropout_4")
     %{
     convolution2dLayer(3,128,'Padding','same',"Name","conv_9")
     batchNormalizationLayer("Name","batchnorm_9")
@@ -218,12 +218,14 @@ executionEnvironment = "cpu";
 numHiddenDimension = 27;
 l2Regularization = 0.06; % 0.06 wypracowana z poprzedniej fazy
 
-labelThreshold = 0.5;
+%labelThreshold = 0.5;
 
 velocity1 = [];
 numObservations = size(YTrain,2);
 averageSqGrad1=[];
 averageGrad1=[];
+
+% celem wlaczenia lub wylaczenia grafiki trzeba postawic znak % w 1 miejscu i { w 2 miejscach 
 
 %plots = "training-progress";
 

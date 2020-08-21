@@ -1,6 +1,8 @@
 function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_model)
 
     %persistent mp;
+    %persistent wyniki_scores;
+    %persistent wyniki_labels;
 
         %tline = fgetl(header_data);
         %tmp_str = strsplit(tline,' ');
@@ -23,7 +25,7 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     
     %PARAMETRY SYGNALOW
     fs_fixed = 100; %docelowe sample frequency
-    max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s%DOWNSAMPLING
+    max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 30 s%DOWNSAMPLING
     data= resample(data',fs_fixed,fs); %resampling do 100Hz
     data = data';   
     
@@ -40,14 +42,38 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     end
     data = ECG12filt2;   
     
+    data_new = [];
+    
     %PRZYCINANIE DLUZSZYCH SYGNALOW
     matrixToExport_withzeros = zeros(12,max_length);
-    if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
+%     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
+%         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
+%     else
+%         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
+%     end
+%     %             all_signals_matrix = [all_signals_matrix reshape(matrixToExport_withzeros',[],1)];
+
+     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
-    else
+     else
+        %kopiowanie za krotkich sygnalow:
+        if(size(data,2)<size(matrixToExport_withzeros,2))
+            howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+            howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
+            for j=1:howManyTimes
+                data_new = [data_new data];
+            end
+           
+            %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
+            if(howManyToCopy_residuum>0)
+                data_new = [data_new data(:,howManyToCopy_residuum)];
+            end
+            data = data_new;   
+        end
+       
         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
     end
-    %             all_signals_matrix = [all_signals_matrix reshape(matrixToExport_withzeros',[],1)];
+
     signal_to_predict = reshape(matrixToExport_withzeros',[],1); 
     
     X_Train = signal_to_predict;
@@ -64,9 +90,10 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     %    dlXTrain1 = gpuArray(dlXTrain1);
     %end
     
-    labelThreshold = 0.5;
+    labelThreshold = 0.4;
     
-    dlYPred1 = forward(dlnet1,dlXTrain1);
+    %dlYPred1 = forward(dlnet1,dlXTrain1);
+    dlYPred1 = predict(dlnet1,dlXTrain1);
     dlYPred_concat_train = sigmoid(dlYPred1);
     YPred_Train_toPerformance = extractdata(dlYPred_concat_train> labelThreshold);
     
@@ -111,6 +138,8 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     
     
     %mp = [mp; label];
+    %wyniki_scores = [wyniki_scores; score];
+    %wyniki_labels = [wyniki_labels; label];
     
 end
 
