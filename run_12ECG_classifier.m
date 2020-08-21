@@ -25,7 +25,7 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     
     %PARAMETRY SYGNALOW
     fs_fixed = 100; %docelowe sample frequency
-    max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 30 s%DOWNSAMPLING
+    max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s %DOWNSAMPLING
     data= resample(data',fs_fixed,fs); %resampling do 100Hz
     data = data';   
     
@@ -90,7 +90,7 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     %    dlXTrain1 = gpuArray(dlXTrain1);
     %end
     
-    labelThreshold = 0.4;
+    labelThreshold = 0.35;
     
     %dlYPred1 = forward(dlnet1,dlXTrain1);
     dlYPred1 = predict(dlnet1,dlXTrain1);

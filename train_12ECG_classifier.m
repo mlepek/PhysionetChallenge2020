@@ -54,7 +54,7 @@ num_files = length(input_files);
 Labels_hotmatrix = zeros(num_classes,num_files);
 %PARAMETRY SYGNALOW
 fs_fixed = 100; %docelowe sample frequency
-max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 30 s
+max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
 
 % Iterate over files.
 all_signals_matrix = zeros(12*max_length,num_files,'int16'); %inicjalizacja macierzy z sygnalami do eksportu
