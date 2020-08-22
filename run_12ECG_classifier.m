@@ -11,7 +11,11 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
         fs = str2num(tmp_str{3});
 
 
-    dlnet1 = loaded_model.model;
+    dlnet1 = loaded_model.model1;
+    dlnet2 = loaded_model.model2;
+    dlnet3 = loaded_model.model3;
+    dlnet = loaded_model.model;
+    
 	%model = loaded_model.model;
 	classes = loaded_model.classes;
     num_classes = length(classes);
