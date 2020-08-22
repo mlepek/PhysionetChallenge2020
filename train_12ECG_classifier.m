@@ -1,6 +1,10 @@
 function  model = train_12ECG_classifier(input_directory,output_directory)
 
 disp('Loading data...')
+addpath('./QRSdet_Tosi');
+addpath('./ALGO_2');
+% Add that folder plus all subfolders to the path.
+addpath(genpath('./Tools/'));
 
 % Find files.
 input_files = {};
@@ -52,9 +56,12 @@ num_files = length(input_files);
 %Total_data=cell(1,num_files);
 %Total_header=cell(1,num_files);
 Labels_hotmatrix = zeros(num_classes,num_files);
+
+%%PRZYGOTOWANIE SYGNALOW ECG
+
 %PARAMETRY SYGNALOW
 fs_fixed = 100; %docelowe sample frequency
-max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
+max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
 
 % Iterate over files.
 all_signals_matrix = zeros(12*max_length,num_files,'int16'); %inicjalizacja macierzy z sygnalami do eksportu
@@ -72,75 +79,147 @@ for i = 1:num_files
     [data,hea_data] = load_challenge_data(tmp_input_file);
     if(sum(single_recording_labels==1)>0)
         %Preprocessing of the data before aggregation to one matrix
-        all_signals_matrix = preprocessing_before_aggregation(data, fs, all_signals_matrix, iter, max_length);
+        all_signals_matrix_temp = preprocessing_before_aggregation(data, fs, max_length);
+        all_signals_matrix(:,i) = all_signals_matrix_temp;
         
         
         Labels_hotmatrix(:,iter) = single_recording_labels';
         
-        %Total_data{i}=data;
-        %Total_header{i}=hea_data;
+        matrixToExport_withzeros = zeros(12,max_length);
+        
+        %% wyznaczanie macierzy RRow
+        RRMatrixToExport_withzeros = zeros(1, max_length+1.2*fs_fixed);
+        %PRZYCINANIE DLUZSZYCH RRów
+        RR_new = [];
+        ann = hierarchiczny_12(data',fs_fixed);
+        RR = diff(ann)/fs_fixed;
+        if ~isempty(RR)
+            if(length(RR)>length(RRMatrixToExport_withzeros)) %ucinanie dluzszych sygnalow
+                %             datatmp = data(:,1:size(matrixToExport_withzeros,2));
+                RR = RR(1:size(RRMatrixToExport_withzeros,2));
+                
+            else
+                %kopiowanie za krotkich sygnalow:
+                if(length(RR)<length(RRMatrixToExport_withzeros))
+                    howManyTimes = floor(size(RRMatrixToExport_withzeros,2)/length(RR)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+                    howManyToCopy_residuum = size(RRMatrixToExport_withzeros,2)-length(RR)*howManyTimes; %reszta brakujacych probek
+                    
+                    for j=1:howManyTimes
+                        RR_new = [RR_new; RR];
+                    end
+                    
+                    %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
+                    if(howManyToCopy_residuum>0)
+                        RR_new = [RR_new; RR(1:howManyToCopy_residuum)];
+                    end
+                    RR = RR_new;
+                end
+                ECG_header.nsamp = length(data);
+                
+            end
+            
+            RRMatrixToExport_withzeros(:, 1:size(RR,1)) = RR*1000; % zeby bylo w ms
+        end
+        
+        %% wyznaczanie macierzy usrednionych beatow
+        
+        coherentMatrixToExport = zeros(12, 1.2*fs_fixed);
+        wavedet_config.setup.wavedet.QRS_detection_only = 0;
+        ECG_header.nsig = 1; ECG_header.freq = fs_fixed;
+        
+        if(size(data,2)>size(matrixToExport_withzeros,2)) %ucinanie dluzszych sygnalow
+            data = data(:,1:size(matrixToExport_withzeros,2));
+        end
+        
+        ECG_header.nsamp = length(data);
+        ann = hierarchiczny_12(data',fs_fixed);
+        try
+            [Fid_pts,~,~] = wavedet_3D_ECGKit(data(1,:)', ann', ECG_header, wavedet_config);
+            [coherent,~] = Time_coherent_code_github_algo2(data',Fid_pts,fs_fixed);
+            coherentMatrixToExport(:,1:length(coherent)) = coherent';
+        catch
+        end
+
+        all_RR_matrix(:,i) = reshape(RRMatrixToExport_withzeros',[],1);
+        all_coherent_matrix(:,i) = reshape(coherentMatrixToExport',[],1);
+        
         iter = iter + 1;
+        
     end
     
 end
 
 all_signals_matrix = all_signals_matrix(:,1:iter);
 Labels_hotmatrix = Labels_hotmatrix(:,1:iter);
+
+
+
+
+
+
 disp('Training model..')
 
-% label=zeros(num_files,num_classes);
-%
-% for i = 1:num_files
-%
-%     disp(['    ', num2str(i), '/', num2str(num_files), '...']);
-%
-%     data = Total_data{i};
-%     header_data = Total_header{i};
-%
-%     tmp_features = get_12ECG_features(data,header_data);
-%
-%     features(i,:)=tmp_features;
-%
-%     for j = 1 : length(header_data)
-%         if startsWith(header_data{j},'#Dx')
-%             tmp = strsplit(header_data{j},': ');
-%             tmp_c = strsplit(tmp{2},',');
-%             for k=1:length(tmp_c)
-%                 idx=find(strcmp(classes,tmp_c{k}));
-%                 label(i,idx)=1;
-%             end
-%             break
-%         end
-%     end
-%
-%
-% end
 
+ 
 
-X_Train = all_signals_matrix;
-% Labels_Train = Labels_rand;
-% Labels_abbr_Train = Labels_abbr_rand;
-Labels_hotmatrix_Train = Labels_hotmatrix;
+%%
+idx = randperm(size(all_signals_matrix,2)); %wymieszane indeksy aby arytmie tego samego rodzaju nie lezaly wszystkie obok siebie
+all_signals_matrix_rand = all_signals_matrix(1:end,idx); %poszuflowana macierz
+all_RR_matrix_rand = all_RR_matrix(1:end,idx); 
+all_coherent_matrix_rand = all_coherent_matrix(1:end,idx); 
+Labels_rand = Labels(idx); %wektor anotacji referencyjnych
+Labels_abbr_rand = Labels_abbr(idx); %wektor anotacji referencyjnych (
+Labels_hotmatrix = Labels_hotmatrix(:,idx); %hot matrix 
+
+%100% - baza treningowa
+train_size = round(size(all_signals_matrix_rand,2)*1);
+X_Train = all_signals_matrix_rand(:,1:train_size);
+X_Train_RR = all_RR_matrix_rand(:,1:train_size);
+X_Train_coherent = all_coherent_matrix_rand(:,1:train_size);
+Labels_Train = Labels_rand(1:train_size);
+Labels_abbr_Train = Labels_abbr_rand(1:train_size);
+Labels_hotmatrix_Train = Labels_hotmatrix(:,(1:train_size));
+
 
 Y_Train = Labels_hotmatrix_Train;
-%przegrupowanie macierzy do 3d
 X_Train = reshape(X_Train,size(X_Train,1)/12,12,size(X_Train,2));
+X_Train_RR = reshape(X_Train_RR,size(X_Train_RR,1),1,size(X_Train_RR,2));
+X_Train_coherent = reshape(X_Train_coherent,size(X_Train_coherent,1)/12,12,size(X_Train_coherent,2));
+
+
 %przegrupowanie macierzy do 4d
 X_Train_Input = zeros(size(X_Train,1),size(X_Train,2),1,size(X_Train,3),'int16');
+X_Train_RR_Input = zeros(size(X_Train_RR,1),size(X_Train_RR,2),1,size(X_Train_RR,3),'int16');
+X_Train_coherent_Input = zeros(size(X_Train_coherent,1),size(X_Train_coherent,2),1,size(X_Train_coherent,3),'int16');
 for i=1:length(X_Train)
     X_Train_Input(:,:,1,i) = X_Train(:,:,i);
+    X_Train_RR_Input(:,:,1,i) = X_Train_RR(:,:,i);
+    X_Train_coherent_Input(:,:,1,i) = X_Train_coherent(:,:,i);
 end
 
-XTrain1 = X_Train_Input;
-YTrain = Y_Train;
 
 %czyszczenie pamieci
-clear X_Train
+clear X_Train 
+clear X_Test
+clear X_Train_RR
+
+
+XTrain1 = X_Train_Input;
+XTrain2 = X_Train_coherent_Input; %   
+XTrain3 = X_Train_RR_Input; 
+YTrain = Y_Train;
+
+
+clear all_signals_matrix
+clear all_signals_matrix_rand
 
 %% MIEJSCE NA TRAINING CUSTOM LOOP
 
-layers = [
-    imageInputLayer([size(X_Train_Input,1) size(X_Train_Input,2) 1],"Name","imageinput","Mean",mean(X_Train_Input,4))
+numNets = 3;
+numHiddenDimension = 20;
+% Net1
+layers1 = [
+    imageInputLayer([size(XTrain1,1) size(XTrain1,2) 1],"Name","imageinput","Mean",mean(XTrain1,4))
     
     convolution2dLayer([3,3],8,'Padding','same',"Name","conv_1")
     %batchNormalizationLayer("Name","batchnorm_1")
@@ -150,7 +229,7 @@ layers = [
     reluLayer("Name","relu_2")
     maxPooling2dLayer([2,2],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_1")
+    dropoutLayer(0.1,"Name","dropout_1")  
     
     convolution2dLayer(3,16,'Padding','same',"Name","conv_3")
     %batchNormalizationLayer("Name","batchnorm_3")
@@ -160,8 +239,8 @@ layers = [
     reluLayer("Name","relu_4")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_2",'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_2")
-    
+    dropoutLayer(0.1,"Name","dropout_2")  
+ 
     convolution2dLayer(3,32,'Padding','same',"Name","conv_5")
     %batchNormalizationLayer("Name","batchnorm_5")
     reluLayer("Name","relu_5")
@@ -170,7 +249,7 @@ layers = [
     reluLayer("Name","relu_6")
     maxPooling2dLayer(2,'Stride',2,"Name","maxpool_3",'Padding','same')
     
-    dropoutLayer(0.1,"Name","dropout_3")
+    dropoutLayer(0.1,"Name","dropout_3")  
     
     convolution2dLayer(3,64,'Padding','same',"Name","conv_7")
     %batchNormalizationLayer("Name","batchnorm_7")
@@ -182,55 +261,193 @@ layers = [
     dropoutLayer(0.1,"Name","dropout_4")
     %{
     convolution2dLayer(3,128,'Padding','same',"Name","conv_9")
-    batchNormalizationLayer("Name","batchnorm_9")
+    %batchNormalizationLayer("Name","batchnorm_9")
     reluLayer("Name","relu_9")
     convolution2dLayer(3,128,'Padding','same',"Name","conv_10")
-    batchNormalizationLayer("Name","batchnorm_10")
+    %batchNormalizationLayer("Name","batchnorm_10")
     reluLayer("Name","relu_10")
     
     dropoutLayer(0.2,"Name","dropout_5")
     
     convolution2dLayer(3,256,'Padding','same',"Name","conv_11")
-    batchNormalizationLayer("Name","batchnorm_11")
+    %batchNormalizationLayer("Name","batchnorm_11")
     reluLayer("Name","relu_11")
     convolution2dLayer(3,256,'Padding','same',"Name","conv_12")
-    batchNormalizationLayer("Name","batchnorm_12")
+    %batchNormalizationLayer("Name","batchnorm_12")
     reluLayer("Name","relu_12")
     
     dropoutLayer(0.2,"Name","dropout_6")
     %}
-    fullyConnectedLayer(27,"Name","fully-con")
-    ];
+    fullyConnectedLayer(numHiddenDimension,"Name","fully-con")
+   ];
 
-lgraph = layerGraph(layers);
+lgraph = layerGraph(layers1);
 dlnet1 = dlnetwork(lgraph);
 
+% Net2
+layers2 = [
+    imageInputLayer([size(XTrain2,1) size(XTrain2,2) 1],"Name","imageinput","Mean",mean(XTrain2,4))
+    
+    convolution2dLayer([3,3],8,'Padding','same',"Name","conv_1")
+    %batchNormalizationLayer("Name","batchnorm_1")
+    reluLayer("Name","relu_1")
+    convolution2dLayer([3,3],8,'Padding','same',"Name","conv_2")
+    %batchNormalizationLayer("Name","batchnorm_2")
+    reluLayer("Name","relu_2")
+    maxPooling2dLayer([2,2],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_1")  
+    
+    convolution2dLayer(3,16,'Padding','same',"Name","conv_3")
+    %batchNormalizationLayer("Name","batchnorm_3")
+    reluLayer("Name","relu_3")
+    convolution2dLayer(3,16,'Padding','same',"Name","conv_4")
+    %batchNormalizationLayer("Name","batchnorm_4")
+    reluLayer("Name","relu_4")
+    maxPooling2dLayer(2,'Stride',2,"Name","maxpool_2",'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_2")  
+ 
+    convolution2dLayer(3,32,'Padding','same',"Name","conv_5")
+    %batchNormalizationLayer("Name","batchnorm_5")
+    reluLayer("Name","relu_5")
+    convolution2dLayer(3,32,'Padding','same',"Name","conv_6")
+    %batchNormalizationLayer("Name","batchnorm_6")
+    reluLayer("Name","relu_6")
+    maxPooling2dLayer(2,'Stride',2,"Name","maxpool_3",'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_3")  
+    
+    convolution2dLayer(3,64,'Padding','same',"Name","conv_7")
+    %batchNormalizationLayer("Name","batchnorm_7")
+    reluLayer("Name","relu_7")
+    convolution2dLayer(3,64,'Padding','same',"Name","conv_8")
+    %batchNormalizationLayer("Name","batchnorm_8")
+    reluLayer("Name","relu_8")
+    
+    dropoutLayer(0.1,"Name","dropout_4")
+    %{
+    convolution2dLayer(3,128,'Padding','same',"Name","conv_9")
+    %batchNormalizationLayer("Name","batchnorm_9")
+    reluLayer("Name","relu_9")
+    convolution2dLayer(3,128,'Padding','same',"Name","conv_10")
+    %batchNormalizationLayer("Name","batchnorm_10")
+    reluLayer("Name","relu_10")
+    
+    dropoutLayer(0.2,"Name","dropout_5")
+    
+    convolution2dLayer(3,256,'Padding','same',"Name","conv_11")
+    %batchNormalizationLayer("Name","batchnorm_11")
+    reluLayer("Name","relu_11")
+    convolution2dLayer(3,256,'Padding','same',"Name","conv_12")
+    %batchNormalizationLayer("Name","batchnorm_12")
+    reluLayer("Name","relu_12")
+    
+    dropoutLayer(0.2,"Name","dropout_6")
+    %}
+    fullyConnectedLayer(numHiddenDimension,"Name","fully-con")
+    ];
+
+lgraph = layerGraph(layers2);
+dlnet2 = dlnetwork(lgraph);
+
+% Net3
+layers3 = [
+    imageInputLayer([size(XTrain3,1) size(XTrain3,2) 1],"Name","imageinput","Mean",mean(XTrain3,4))
+    
+    convolution2dLayer([3,1],8,'Padding','same',"Name","conv_1")
+    %batchNormalizationLayer("Name","batchnorm_1")
+    reluLayer("Name","relu_1")
+    convolution2dLayer([3,1],8,'Padding','same',"Name","conv_2")
+    %batchNormalizationLayer("Name","batchnorm_2")
+    reluLayer("Name","relu_2")
+    maxPooling2dLayer([2,1],"Name","maxpool_1",'Stride',[2,2],'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_1")  
+    
+    convolution2dLayer([3,1],16,'Padding','same',"Name","conv_3")
+    %batchNormalizationLayer("Name","batchnorm_3")
+    reluLayer("Name","relu_3")
+    convolution2dLayer([3,1],16,'Padding','same',"Name","conv_4")
+    %batchNormalizationLayer("Name","batchnorm_4")
+    reluLayer("Name","relu_4")
+    maxPooling2dLayer([2,1],'Stride',2,"Name","maxpool_2",'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_2")  
+ 
+    convolution2dLayer([3,1],32,'Padding','same',"Name","conv_5")
+    %batchNormalizationLayer("Name","batchnorm_5")
+    reluLayer("Name","relu_5")
+    convolution2dLayer([3,1],32,'Padding','same',"Name","conv_6")
+    %batchNormalizationLayer("Name","batchnorm_6")
+    reluLayer("Name","relu_6")
+    maxPooling2dLayer([2,1],'Stride',2,"Name","maxpool_3",'Padding','same')
+    
+    dropoutLayer(0.1,"Name","dropout_3")  
+    
+    convolution2dLayer([3,1],64,'Padding','same',"Name","conv_7")
+    %batchNormalizationLayer("Name","batchnorm_7")
+    reluLayer("Name","relu_7")
+    convolution2dLayer([3,1],64,'Padding','same',"Name","conv_8")
+    %batchNormalizationLayer("Name","batchnorm_8")
+    reluLayer("Name","relu_8")
+    
+    dropoutLayer(0.1,"Name","dropout_4")
+    %{
+    convolution2dLayer(3,128,'Padding','same',"Name","conv_9")
+    %batchNormalizationLayer("Name","batchnorm_9")
+    reluLayer("Name","relu_9")
+    convolution2dLayer(3,128,'Padding','same',"Name","conv_10")
+    %batchNormalizationLayer("Name","batchnorm_10")
+    reluLayer("Name","relu_10")
+    
+    dropoutLayer(0.2,"Name","dropout_5")
+    
+    convolution2dLayer(3,256,'Padding','same',"Name","conv_11")
+    %batchNormalizationLayer("Name","batchnorm_11")
+    reluLayer("Name","relu_11")
+    convolution2dLayer(3,256,'Padding','same',"Name","conv_12")
+    %batchNormalizationLayer("Name","batchnorm_12")
+    reluLayer("Name","relu_12")
+    
+    dropoutLayer(0.2,"Name","dropout_6")
+    %}
+    fullyConnectedLayer(numHiddenDimension,"Name","fully-con")
+    ];
+
+lgraph = layerGraph(layers3);
+dlnet3 = dlnetwork(lgraph);
+
+% Net
+layers = [
+    imageInputLayer([1 numNets*numHiddenDimension 1],"Name","imageinput","Normalization","none")
+    fullyConnectedLayer(27,"Name","fc_2")];
+lgraph = layerGraph(layers);
+dlnet = dlnetwork(lgraph);
 
 %% Specify the training options
 
-numEpochs = 30;
-miniBatchSize = 1024;
-epsilon=0.001;
-learnRate = 0.001;
+numEpochs = 40;
+miniBatchSize = 256;
+epsilon=0.001; 
+learnRate = 0.0005;
 GradDecay=0.9;
 sqGradDecay= 0.9;
-executionEnvironment = "cpu";
-numHiddenDimension = 27;
+executionEnvironment = "gpu";
 l2Regularization = 0.06; % 0.06 wypracowana z poprzedniej fazy
 
-%labelThreshold = 0.5;
+labelThreshold = 0.45;
 
-velocity1 = [];
+velocity1 = []; velocity2 = []; velocity3 = []; velocity = [];
 numObservations = size(YTrain,2);
-averageSqGrad1=[];
-averageGrad1=[];
+averageSqGrad1=[]; averageSqGrad2=[]; averageSqGrad3=[]; averageSqGrad=[];
+averageGrad1=[]; averageGrad2=[]; averageGrad3=[]; averageGrad=[];
 
-% celem wlaczenia lub wylaczenia grafiki trzeba postawic znak % w 1 miejscu i { w 2 miejscach 
-
-%plots = "training-progress";
+% plots = "training-progress";
 
 numIterationsPerEpoch = floor(numObservations/miniBatchSize);
-validationFrequency = 3 * numIterationsPerEpoch;
+% validationFrequency = 3 * numIterationsPerEpoch;
+
 
 %{
 if plots == "training-progress"
@@ -264,177 +481,222 @@ if plots == "training-progress"
 end
 %}
 
+%% train model
+
 iteration = 0;
 start = tic;
 numClasses = 27;
 % Loop over epochs.
 for epoch = 1:numEpochs
-    %disp(epoch)
-    
     % Shuffle data.
     idx = randperm(size(YTrain,2));
     XTrain1 = XTrain1(:,:,:,idx);
-    %     XTrain2 = XTrain2(:,:,:,idx);
+    XTrain2 = XTrain2(:,:,:,idx);
+    XTrain3 = XTrain3(:,:,:,idx);
     YTrain = YTrain(:,idx);
     
     % Loop over mini-batches.
-    for i = 1:numIterationsPerEpoch
+     for i = 1:numIterationsPerEpoch
         iteration = iteration + 1;
-        %disp(iteration)
         
         % Read mini-batch of data and convert the labels to dummy
         % variables.
         idx = (i-1)*miniBatchSize+1:i*miniBatchSize;
         X1 = XTrain1(:,:,:,idx);
+        X2 = XTrain2(:,:,:,idx);
+        X3 = XTrain3(:,:,:,idx);
         
         %X1_Test = XTest1;
-        %         X2 = XTrain2(:,:,:,idx);
+
         % convert the label into one-hot vector to calculate the loss
-        %         Y = zeros(numClasses, miniBatchSize, 'single');
+%         Y = zeros(numClasses, miniBatchSize, 'single');
         Y = YTrain(:,idx);
         %Y_Test = YTest; --- w jakim to jest celu?
-        %         for c = 1:numClasses
-        %             Y(c,YTrain(idx)==classes(c)) = 1;
-        %             Y = YTrain(:,idx);
-        %         end
-        
+%         for c = 1:numClasses
+%             Y(c,YTrain(idx)==classes(c)) = 1;
+%             Y = YTrain(:,idx);
+%         end
+         
         % Convert mini-batch of data to dlarray.
         dlX1 = dlarray(single(X1),'SSCB');
+        dlX2 = dlarray(single(X2),'SSCB');
+        dlX3 = dlarray(single(X3),'SSCB');
         %dlX1_Test = dlarray(single(X1_Test),'SSCB'); - w jakim to jest
         %celu tutaj? Przenioslem do czesc walidacyjnej
-        %         dlX2 = dlarray(single(X2),'SSCB');
+
         
         % If training on a GPU, then convert data to gpuArray.
         if (executionEnvironment == "auto" && canUseGPU) || executionEnvironment == "gpu"
             dlX1 = gpuArray(dlX1);
+            dlX2 = gpuArray(dlX2);
+            dlX3 = gpuArray(dlX3);
             %dlX1_Test = gpuArray(dlX1_Test); -- w jakim to celu?
-            %             dlX2 = gpuArray(dlX2);
         end
         %the traning loss and the gradients after the backpropagation were
         %calculated using the helper function modelGradients_demo
-        [gradients1,loss,dlYPred_to_draw] = dlfeval(@modelGradients_demo,dlnet1,dlX1,dlarray(Y));
+        [gradients1,gradients2,gradients3,gradients,loss,dlYPred_to_draw] = dlfeval(@modelGradients_demo,dlnet1,dlnet2,dlnet3,dlnet,dlX1,dlX2,dlX3,dlarray(Y));
         
         % dodaje regularyzacje L2
+        idx = dlnet.Learnables.Parameter == "Weights";
+        gradients(idx,:) = dlupdate(@(g,w) g + l2Regularization*w, gradients(idx,:), dlnet.Learnables(idx,:));
+        idx = dlnet3.Learnables.Parameter == "Weights";
+        gradients3(idx,:) = dlupdate(@(g,w) g + l2Regularization*w, gradients3(idx,:), dlnet3.Learnables(idx,:));
+        idx = dlnet2.Learnables.Parameter == "Weights";
+        gradients2(idx,:) = dlupdate(@(g,w) g + l2Regularization*w, gradients2(idx,:), dlnet2.Learnables(idx,:));
         idx = dlnet1.Learnables.Parameter == "Weights";
         gradients1(idx,:) = dlupdate(@(g,w) g + l2Regularization*w, gradients1(idx,:), dlnet1.Learnables(idx,:));
         
+
+        
         % Update the network parameters using the RMSProp optimizer.
-        % Update the parameters in dlnet1 to 3 sequentially
-        %         [dlnet3,averageGrad3, averageSqGrad3] = adamupdate(dlnet3, gradients3,averageGrad3, averageSqGrad3,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
-        %         [dlnet2,averageGrad2, averageSqGrad2] = adamupdate(dlnet2, gradients2,averageGrad2, averageSqGrad2,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
+        % Update the parameters in dlnet1 to 3 sequentially 
+        [dlnet,averageGrad, averageSqGrad] = adamupdate(dlnet, gradients,averageGrad, averageSqGrad,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
+        [dlnet3,averageGrad3, averageSqGrad3] = adamupdate(dlnet3, gradients3,averageGrad3, averageSqGrad3,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
+        [dlnet2,averageGrad2, averageSqGrad2] = adamupdate(dlnet2, gradients2,averageGrad2, averageSqGrad2,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
         [dlnet1,averageGrad1, averageSqGrad1] = adamupdate(dlnet1, gradients1,averageGrad1, averageSqGrad1,iteration,learnRate,GradDecay,sqGradDecay,epsilon);
         % Display the training progress.
-        D = duration(0,0,toc(start),'Format','hh:mm:ss');
-        %         addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
-        %         title("Epoch: " + epoch + ", Elapsed: " + string(D))
-        %         drawnow
+%         D = duration(0,0,toc(start),'Format','hh:mm:ss');
+%         addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
+%         title("Epoch: " + epoch + ", Elapsed: " + string(D))
+%         drawnow
         
-        % Display the training progress.
-        %{
-        if plots == "training-progress"
-            subplot(2,1,1)
-            D = duration(0,0,toc(start),'Format','hh:mm:ss');
-            title("Epoch: " + epoch + ", Elapsed: " + string(D))
-            
-            % Loss.
-            addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
-            
-            % Labeling F-score.
-            %             YPred = extractdata(dlYPred_to_draw) > labelThreshold;
-            YPred_Train = extractdata(dlYPred_to_draw) == max(dlYPred_to_draw);
-            score = labelingFScore(YPred_Train,Y);
-            addpoints(lineFScoreTrain,iteration,extractdata(score))
-            
-            drawnow
-            
-            %% Display validation metrics.
-            %             if iteration == 1 || mod(iteration,validationFrequency) == 0
-            %
-            %                 % usuwamy dropout, zeby nie dzialal podczas funkcji
-            %                 % forward
-            %                 % Czy obiekt layerGraph zachowuje gdzies niejawnie
-            %                 % informacje o wagach? Wyglada na to, ze tak!
-            %                 %
-            %                 lgraph = layerGraph(dlnet1);
-            %
-            %                 larray = [ dropoutLayer(0.0, 'Name','dropout_1') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
-            %                 larray = [ dropoutLayer(0.0, 'Name','dropout_2') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
-            %                 larray = [ dropoutLayer(0.0, 'Name','dropout_3') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
-            %                 larray = [ dropoutLayer(0.0, 'Name','dropout_4') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
-            %
-            %                 dlnet1 = dlnetwork(lgraph);
-            %                 %}
-            %
-            % %                 [gradients1,lossValidation,dlYPred_to_draw_test] = dlfeval(@modelGradients_demo,dlnet1,dlX1_Test,dlarray(Y_Test));
-            %
-            %                 %X1_Test = XTest1;
-            %                 %Y_Test = YTest;
-            %                 dlX1_Test = dlarray(single(XTest1),'SSCB');
-            %
-            %                 dlX_concat_test=dlarray(single(dlX1_Test),'SSCB');
-            %                         %dlX_concat_test = gpuArray(dlX_concat_test);
-            %                 dlY_concat_test = forward(dlnet1,dlX_concat_test);
-            %                 %dlY_concat_test = predict(dlnet1,dlX_concat_test);
-            %                 dlYPred_concat_test = sigmoid(dlY_concat_test);
-            %                 lossValidation = crossentropy(dlYPred_concat_test,Y_Test);
-            %                 % Loss.
-            % %                 lossValidation = crossentropy(dlYPredValidation,TValidation, ...
-            % %                     'TargetCategories','independent', ...
-            % %                     'DataFormat','CB');
-            %                 addpoints(lineLossValidation,iteration,double(gather(extractdata(lossValidation))))
-            %
-            %                 % Labeling F-score.
-            %                   YPredValidation = extractdata(dlYPred_concat_test) == max(dlYPred_concat_test);
-            %                   score = labelingFScore(YPredValidation,Y_Test);
-            %                   addpoints(lineFScoreValidation,iteration,extractdata(score))
-            % %                 YPredValidation = extractdata(dlYPredValidation) > labelThreshold;
-            % %                 score = labelingFScore(YPredValidation,TValidation);
-            % %                 addpoints(lineFScoreValidation,iteration,double(gather(score)))
-            % %
-            %                 drawnow
-            %
-            %                 % przywracamy dropout, zeby dzialal podczas funkcji
-            %                 % forward
-            %                 lgraph = layerGraph(dlnet1);
-            %
-            %                 larray = [ dropoutLayer(0.1, 'Name','dropout_1') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
-            %                 larray = [ dropoutLayer(0.1, 'Name','dropout_2') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
-            %                 larray = [ dropoutLayer(0.1, 'Name','dropout_3') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
-            %                 larray = [ dropoutLayer(0.1, 'Name','dropout_4') ];
-            %                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
-            %
-            %                 dlnet1 = dlnetwork(lgraph);
-            %                 %}
-            %
-            %             end
-            %         end
-            %     end
-        end
-        %}
-        
-        %
-        % model = mnrfit(features,label,'model','hierarchical');
-        %% Save model
-        
-        
-    end
+         %% Display the training progress.
+%         if plots == "training-progress"
+%             subplot(2,1,1)
+%             D = duration(0,0,toc(start),'Format','hh:mm:ss');
+%             title("Epoch: " + epoch + ", Elapsed: " + string(D))
+%             
+%             % Loss.
+%             addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
+%             
+%             % Labeling F-score.
+% %             YPred = extractdata(dlYPred_to_draw) > labelThreshold;
+%             YPred_Train = extractdata(dlYPred_to_draw) == max(dlYPred_to_draw);
+%             score = labelingFScore(YPred_Train,Y);
+%             addpoints(lineFScoreTrain,iteration,extractdata(score))
+%             
+%             drawnow
+%             
+%             %% Display validation metrics.
+%             if iteration == 1 || mod(iteration,validationFrequency) == 0
+%                
+%                 % usuwamy dropout, zeby nie dzialal podczas funkcji
+%                 % forward
+%                 % Czy obiekt layerGraph zachowuje gdzies niejawnie
+%                 % informacje o wagach? Wyglada na to, ze tak!
+%                 %
+%                 lgraph = layerGraph(dlnet1);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet1 = dlnetwork(lgraph);
+%                 
+%                 lgraph = layerGraph(dlnet2);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet2 = dlnetwork(lgraph);
+%                 
+%                 lgraph = layerGraph(dlnet3);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.0, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet3 = dlnetwork(lgraph);
+%                 %}
+%                 
+% %                 [gradients1,lossValidation,dlYPred_to_draw_test] = dlfeval(@modelGradients_demo,dlnet1,dlX1_Test,dlarray(Y_Test));
+%                 
+% 
+%                 dlX1_Test = dlarray(single(XTest1),'SSCB');
+%                 dlX2_Test = dlarray(single(XTest2),'SSCB');
+%                 dlX3_Test = dlarray(single(XTest3),'SSCB');
+% 
+%                 dlY_Test_Pred1 = forward(dlnet1,dlX1_Test);
+%                 dlY_Test_Pred2 = forward(dlnet2,dlX2_Test);
+%                 dlY_Test_Pred3 = forward(dlnet3,dlX3_Test);
+%                 dlYPred_concat_test=[dlY_Test_Pred1;dlY_Test_Pred2;dlY_Test_Pred3];
+%                 dlYPred_concat_test=reshape(dlYPred_concat_test,[1 numNets*numHiddenDimension, 1, size(dlYPred_concat_test, 2)]);
+%                 dlYPred_concat_test=dlarray(single(dlYPred_concat_test),'SSCB');
+%                 dlYPred_concat_test=forward(dlnet,dlYPred_concat_test);
+%                 dlYPred_concat_test = sigmoid(dlYPred_concat_test);
+%                 lossValidation = crossentropy(dlYPred_concat_test,Y_Test);
+% 
+%                 addpoints(lineLossValidation,iteration,double(gather(extractdata(lossValidation))))
+%                 
+%                 % Labeling F-score.
+%                   YPredValidation = extractdata(dlYPred_concat_test) == max(dlYPred_concat_test);
+%                   score = labelingFScore(YPredValidation,Y_Test);
+%                   addpoints(lineFScoreValidation,iteration,extractdata(score))
+% %                 YPredValidation = extractdata(dlYPredValidation) > labelThreshold;
+% %                 score = labelingFScore(YPredValidation,TValidation);
+% %                 addpoints(lineFScoreValidation,iteration,double(gather(score)))
+% %                 
+%                 drawnow
+%                 
+%                 % przywracamy dropout, zeby dzialal podczas funkcji
+%                 % forward
+%                 %
+%                 lgraph = layerGraph(dlnet1);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet1 = dlnetwork(lgraph);
+%                 
+%                 lgraph = layerGraph(dlnet2);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet2 = dlnetwork(lgraph);
+%                 
+%                 lgraph = layerGraph(dlnet3);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_1') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_1',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_2') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_2',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_3') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_3',larray);
+%                 larray = [ dropoutLayer(0.1, 'Name','dropout_4') ];
+%                 lgraph = replaceLayer(lgraph,'dropout_4',larray);
+%                 dlnet3 = dlnetwork(lgraph);
+%                 %}
+%                 
+%             end
+%         end
+     end
 end
-
-save_12_ECG_model(dlnet1,output_directory,classes);
+save_12_ECG_model(dlnet1,dlnet2,dlnet3,dlnet,output_directory,classes);
 
 end
-function save_12_ECG_model(model,output_directory,classes)
+function save_12_ECG_model(model1, model2, model3, model,output_directory,classes)
 % Save results.
 tmp_file = 'finalized_model_entry_official_1.mat';
 filename=fullfile(output_directory,tmp_file);
-save(filename,'model','classes','-v7.3');
+save(filename, 'model1', 'model2', 'model3', 'model', 'classes', '-v7.3');
 
 
 disp('Done.')

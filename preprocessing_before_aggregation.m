@@ -1,4 +1,4 @@
-function all_signals_matrix = preprocessing_before_aggregation(data, fs, all_signals_matrix, i, max_length)
+function all_signals_matrix_output = preprocessing_before_aggregation(data, fs, max_length)
 
 fs_fixed = 100; %docelowe sample frequency
 %max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
@@ -53,8 +53,7 @@ fs_fixed = 100; %docelowe sample frequency
     end
 
 
-all_signals_matrix(:,i) = reshape(matrixToExport_withzeros',[],1);
-    
+    all_signals_matrix_output = reshape(matrixToExport_withzeros',[],1);
     
     
     

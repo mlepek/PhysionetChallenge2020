@@ -1,4 +1,4 @@
-function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_model)
+function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded_model)
 
     %persistent mp;
     %persistent wyniki_scores;
@@ -21,61 +21,63 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     % Use your classifier here to obtain a label and score for each class.
     %features = get_12ECG_features(data,header_data);
 
-    %preprocessing
+    %% PRZYGOTOWANIE SYGNALOW ECG 
     
     %PARAMETRY SYGNALOW
-    fs_fixed = 100; %docelowe sample frequency
-    max_length = round(10*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s %DOWNSAMPLING
-    data= resample(data',fs_fixed,fs); %resampling do 100Hz
-    data = data';   
-    
-    %DATA FILTERING
-    ECG12filt = [];
-    % median filter to remove bw
-    for ii=1:12
-        ECG12filt(ii,:) = movmean(data(ii,:)', 5);
-    end
-    ECG12filt2 = ECG12filt;
-    
-    for iii=1:size(ECG12filt,1)
-        ECG12filt2(iii,:) = ECG12filt(iii,:) - movmedian(ECG12filt(iii,:), 50);
-    end
-    data = ECG12filt2;   
-    
-    data_new = [];
-    
-    %PRZYCINANIE DLUZSZYCH SYGNALOW
-    matrixToExport_withzeros = zeros(12,max_length);
-%     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
+%     fs_fixed = 100; %docelowe sample frequency
+    max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s %DOWNSAMPLING
+%     data= resample(data',fs_fixed,fs); %resampling do 100Hz
+%     data = data';   
+        
+    signal_to_predict = preprocessing_before_aggregation(data, fs, max_length);
+
+%     %DATA FILTERING
+%     ECG12filt = [];
+%     % median filter to remove bw
+%     for ii=1:12
+%         ECG12filt(ii,:) = movmean(data(ii,:)', 5);
+%     end
+%     ECG12filt2 = ECG12filt;
+%     
+%     for iii=1:size(ECG12filt,1)
+%         ECG12filt2(iii,:) = ECG12filt(iii,:) - movmedian(ECG12filt(iii,:), 50);
+%     end
+%     data = ECG12filt2;   
+%     
+%     data_new = [];
+%     
+%     %PRZYCINANIE DLUZSZYCH SYGNALOW
+%     matrixToExport_withzeros = zeros(12,max_length);
+% %     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
+% %         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
+% %     else
+% %         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
+% %     end
+% %     %             all_signals_matrix = [all_signals_matrix reshape(matrixToExport_withzeros',[],1)];
+% 
+%      if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
 %         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
-%     else
+%      else
+%         %kopiowanie za krotkich sygnalow:
+%         if(size(data,2)<size(matrixToExport_withzeros,2))
+%             howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+%             howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
+%             for j=1:howManyTimes
+%                 data_new = [data_new data];
+%             end
+%            
+%             %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
+%             if(howManyToCopy_residuum>0)
+%                 data_new = [data_new data(:,howManyToCopy_residuum)];
+%             end
+%             data = data_new;   
+%         end
+%        
 %         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
 %     end
-%     %             all_signals_matrix = [all_signals_matrix reshape(matrixToExport_withzeros',[],1)];
-
-     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
-        matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
-     else
-        %kopiowanie za krotkich sygnalow:
-        if(size(data,2)<size(matrixToExport_withzeros,2))
-            howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
-            howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
-            for j=1:howManyTimes
-                data_new = [data_new data];
-            end
-           
-            %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
-            if(howManyToCopy_residuum>0)
-                data_new = [data_new data(:,howManyToCopy_residuum)];
-            end
-            data = data_new;   
-        end
-       
-        matrixToExport_withzeros(1:12,1:size(data,2)) = data;
-    end
-
-    signal_to_predict = reshape(matrixToExport_withzeros',[],1); 
-    
+% 
+%     signal_to_predict = reshape(matrixToExport_withzeros',[],1); 
+%     
     X_Train = signal_to_predict;
     
     %przegrupowanie macierzy do 3d
@@ -90,11 +92,31 @@ function [score, label,classes] = run_12ECG_classifier(data,header_data, loaded_
     %    dlXTrain1 = gpuArray(dlXTrain1);
     %end
     
+    
+    %% PRZYGOTOWANIE SYGNALU RR
+    
+    [RRsignal,ann] = getRR(max_length,fs_fixed, data);
+    dlRRsignal = dlarray(single(RRsignal),'SSCB');
+    
+    %% PRZYGOTOWANIE USREDNIONYCH BEATOW
+    averagedBeat = getAveragedBeat(fs_fixed, data,ann);
+    dlaveragedBeat = dlarray(single(averagedBeat),'SSCB');
+    
+    %% KLASYFIKACJA
+    
     labelThreshold = 0.35;
     
+        dlY_Train_Pred1 = predict(dlnet1,dlXTrain1);
+        dlY_Train_Pred2 = predict(dlnet2,dlaveragedBeat);
+        dlY_Train_Pred3 = predict(dlnet3,dlRRsignal);
+        dlX_concat=[dlY_Train_Pred1;dlY_Train_Pred2;dlY_Train_Pred3];
+        dlX_concat=reshape(dlX_concat,[1 numNets*numHiddenDimension, 1, size(dlX_concat, 2)]);
+        dlXTrain=dlarray(single(dlX_concat),'SSCB');
+        dlYPred=gather(predict(dlnet,dlXTrain));
+    
     %dlYPred1 = forward(dlnet1,dlXTrain1);
-    dlYPred1 = predict(dlnet1,dlXTrain1);
-    dlYPred_concat_train = sigmoid(dlYPred1);
+%     dlYPred1 = predict(dlnet1,dlXTrain1);
+    dlYPred_concat_train = sigmoid(dlYPred);
     YPred_Train_toPerformance = extractdata(dlYPred_concat_train> labelThreshold);
     
     score = extractdata(dlYPred_concat_train);
