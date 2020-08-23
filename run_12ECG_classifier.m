@@ -29,7 +29,7 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     
     %PARAMETRY SYGNALOW
      fs_fixed = 100; %docelowe sample frequency
-    max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s %DOWNSAMPLING
+    max_length = round(110*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 110 s %DOWNSAMPLING
 %     data= resample(data',fs_fixed,fs); %resampling do 100Hz
 %     data = data';   
         
@@ -39,17 +39,17 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     %fragment kodu do analizy poszczegolnych fragmentow sygnalu
     howManyTimes = ceil(size(data,2)/max_length); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
     dataALL = data;
-    YPred_Train_toPerformance_sum = zeros(num_classes,1);
+    %YPred_Train_toPerformance_sum = zeros(num_classes,1);
     dlYPred_concat_train_all = [];
     for j=1:howManyTimes
      
-           
+       data_new = []; 
 
        matrixToExport_withzeros = zeros(12,max_length);
        if(size(data,2)<max_length) %jesli mamy krotszy sygnal niz max_length
-            howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
-            howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
-            for j=1:howManyTimes
+            howManyTimes_shorter = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+            howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes_shorter; %reszta brakujacych probek
+            for j=1:howManyTimes_shorter
                 data_new = [data_new data];
             end
            
@@ -64,7 +64,7 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
            if(j*max_length<=length(dataALL))
               data = dataALL(:,1 + (j-1)*max_length:(j)*max_length);
            else
-              data = dataALL(:,length(dataALL)-max_length-1:end);
+              data = dataALL(:,length(dataALL)-max_length+1:end);
            end
            
        end
@@ -116,21 +116,23 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     dlYPred_concat_train = sigmoid(dlYPred);
     
     %fragment kodu do analizy poszczegolnych fragmentow sygnalu
-    YPred_Train_toPerformance_temp = extractdata(dlYPred_concat_train> labelThreshold);
+    %YPred_Train_toPerformance_temp = extractdata(dlYPred_concat_train> labelThreshold);
     
-    YPred_Train_toPerformance_sum = YPred_Train_toPerformance_sum + YPred_Train_toPerformance_temp;
-    dlYPred_concat_train_all = [dlYPred_concat_train_all ; dlYPred_concat_train]; %sprawdzic wymiary 
+    %YPred_Train_toPerformance_sum = YPred_Train_toPerformance_sum + YPred_Train_toPerformance_temp;
+    dlYPred_concat_train_all = [dlYPred_concat_train_all , dlYPred_concat_train]; %sprawdzic wymiary 
     %
     end
     
     %fragment kodu do analizy poszczegolnych fragmentow sygnalu
-    YPred_Train_toPerformance_sum(YPred_Train_toPerformance_sum>0)=1;
-    YPred_Train_toPerformance = YPred_Train_toPerformance_sum;
-    dlYPred_concat_train = max(dlYPred_concat_train_all);
-    %
+    %YPred_Train_toPerformance_sum(YPred_Train_toPerformance_sum>0)=1;
+    %YPred_Train_toPerformance = YPred_Train_toPerformance_sum;
+    if(size(dlYPred_concat_train_all,2)>1)
+        dlYPred_concat_train = max(dlYPred_concat_train_all, [], 2);
+    end
     
     score = extractdata(dlYPred_concat_train);
-    label =  YPred_Train_toPerformance;
+    label = (score > labelThreshold);
+    %label =  YPred_Train_toPerformance;
     
     % upewnienie sie ze scores i label to wektory wierszowe
     score = score(:)';
@@ -160,6 +162,22 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
         all_111_scores(position_of_this_class) = score(i);
         all_111_labels(position_of_this_class) = label(i);
       
+        if(classes(i)==284470004)
+            all_111_scores( find(all_111_classes == 63593006) ) = score(i);
+            all_111_labels( find(all_111_classes == 63593006) ) = label(i);
+        end
+        
+        if(classes(i)==427172004)
+            all_111_scores( find(all_111_classes == 17338001) ) = score(i);
+            all_111_labels( find(all_111_classes == 17338001) ) = label(i);
+        end
+        
+        if(classes(i)==59118001)
+            all_111_scores( find(all_111_classes == 713427006) ) = score(i);
+            all_111_labels( find(all_111_classes == 713427006) ) = label(i);
+        end
+            
+        
     end
     
     score = all_111_scores;
