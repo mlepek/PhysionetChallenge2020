@@ -66,7 +66,7 @@ max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s
 % Iterate over files.
 all_signals_matrix = zeros(12*max_length,num_files,'int16'); %inicjalizacja macierzy z sygnalami do eksportu
 iter=1;
-
+%num_files = 1000;
 for i = 1:num_files
     disp(['    ', num2str(i), '/', num2str(num_files), '...'])
     
@@ -167,8 +167,8 @@ idx = randperm(size(all_signals_matrix,2)); %wymieszane indeksy aby arytmie tego
 all_signals_matrix_rand = all_signals_matrix(1:end,idx); %poszuflowana macierz
 all_RR_matrix_rand = all_RR_matrix(1:end,idx); 
 all_coherent_matrix_rand = all_coherent_matrix(1:end,idx); 
-Labels_rand = Labels(idx); %wektor anotacji referencyjnych
-Labels_abbr_rand = Labels_abbr(idx); %wektor anotacji referencyjnych (
+%Labels_rand = Labels(idx); %wektor anotacji referencyjnych
+%Labels_abbr_rand = Labels_abbr(idx); %wektor anotacji referencyjnych (
 Labels_hotmatrix = Labels_hotmatrix(:,idx); %hot matrix 
 
 %100% - baza treningowa
@@ -176,8 +176,8 @@ train_size = round(size(all_signals_matrix_rand,2)*1);
 X_Train = all_signals_matrix_rand(:,1:train_size);
 X_Train_RR = all_RR_matrix_rand(:,1:train_size);
 X_Train_coherent = all_coherent_matrix_rand(:,1:train_size);
-Labels_Train = Labels_rand(1:train_size);
-Labels_abbr_Train = Labels_abbr_rand(1:train_size);
+%Labels_Train = Labels_rand(1:train_size);
+%Labels_abbr_Train = Labels_abbr_rand(1:train_size);
 Labels_hotmatrix_Train = Labels_hotmatrix(:,(1:train_size));
 
 
@@ -191,7 +191,7 @@ X_Train_coherent = reshape(X_Train_coherent,size(X_Train_coherent,1)/12,12,size(
 X_Train_Input = zeros(size(X_Train,1),size(X_Train,2),1,size(X_Train,3),'int16');
 X_Train_RR_Input = zeros(size(X_Train_RR,1),size(X_Train_RR,2),1,size(X_Train_RR,3),'int16');
 X_Train_coherent_Input = zeros(size(X_Train_coherent,1),size(X_Train_coherent,2),1,size(X_Train_coherent,3),'int16');
-for i=1:length(X_Train)
+for i=1:size(X_Train,3)
     X_Train_Input(:,:,1,i) = X_Train(:,:,i);
     X_Train_RR_Input(:,:,1,i) = X_Train_RR(:,:,i);
     X_Train_coherent_Input(:,:,1,i) = X_Train_coherent(:,:,i);
@@ -427,16 +427,16 @@ dlnet = dlnetwork(lgraph);
 
 %% Specify the training options
 
-numEpochs = 40;
+numEpochs = 20;
 miniBatchSize = 256;
 epsilon=0.001; 
 learnRate = 0.0005;
 GradDecay=0.9;
 sqGradDecay= 0.9;
-executionEnvironment = "gpu";
+executionEnvironment = "cpu";
 l2Regularization = 0.06; % 0.06 wypracowana z poprzedniej fazy
 
-labelThreshold = 0.45;
+%labelThreshold = 0.45;
 
 velocity1 = []; velocity2 = []; velocity3 = []; velocity = [];
 numObservations = size(YTrain,2);
@@ -560,22 +560,23 @@ for epoch = 1:numEpochs
 %         title("Epoch: " + epoch + ", Elapsed: " + string(D))
 %         drawnow
         
+        %{
          %% Display the training progress.
-%         if plots == "training-progress"
-%             subplot(2,1,1)
-%             D = duration(0,0,toc(start),'Format','hh:mm:ss');
-%             title("Epoch: " + epoch + ", Elapsed: " + string(D))
-%             
-%             % Loss.
-%             addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
-%             
-%             % Labeling F-score.
-% %             YPred = extractdata(dlYPred_to_draw) > labelThreshold;
-%             YPred_Train = extractdata(dlYPred_to_draw) == max(dlYPred_to_draw);
-%             score = labelingFScore(YPred_Train,Y);
-%             addpoints(lineFScoreTrain,iteration,extractdata(score))
-%             
-%             drawnow
+        if plots == "training-progress"
+            subplot(2,1,1)
+            D = duration(0,0,toc(start),'Format','hh:mm:ss');
+            title("Epoch: " + epoch + ", Elapsed: " + string(D))
+            
+            % Loss.
+            addpoints(lineLossTrain,iteration,double(gather(extractdata(loss))))
+            
+            % Labeling F-score.
+%             YPred = extractdata(dlYPred_to_draw) > labelThreshold;
+            YPred_Train = extractdata(dlYPred_to_draw) == max(dlYPred_to_draw);
+            score = labelingFScore(YPred_Train,Y);
+            addpoints(lineFScoreTrain,iteration,extractdata(score))
+            
+            drawnow
 %             
 %             %% Display validation metrics.
 %             if iteration == 1 || mod(iteration,validationFrequency) == 0
@@ -686,7 +687,8 @@ for epoch = 1:numEpochs
 %                 %}
 %                 
 %             end
-%         end
+        end
+        %}
      end
 end
 save_12_ECG_model(dlnet1,dlnet2,dlnet3,dlnet,output_directory,classes);
@@ -811,20 +813,22 @@ fclose(fid);
 end
 
 %% HELPER FUNCTION
-function [gradients1, loss,dlYPred_concat] = modelGradients_demo(dlnet1,dlX1,Y)
+function [gradients1,gradients2,gradients3,gradients,loss,dlYPred_concat] = modelGradients_demo(dlnet1,dlnet2,dlnet3,dlnet,dlX1,dlX2,dlX3,Y)
 
-%     dlYPred1 = forward(dlnet1,dlX1);
-%     dlYPred2 = forward(dlnet2,dlX2);
-%     dlX_concat=[dlYPred1;dlYPred2];
-%     dlX_concat=reshape(dlX_concat,[1 40, 1, 128]);%the value 128 corresponds the mini batch size
-dlX_concat=dlarray(single(dlX1),'SSCB');
-dlY_concat=forward(dlnet1,dlX_concat);
+ 
+
+    dlYPred1 = forward(dlnet1,dlX1);
+    dlYPred2 = forward(dlnet2,dlX2);
+    dlYPred3 = forward(dlnet3,dlX3);
+    dlX_concat=[dlYPred1;dlYPred2;dlYPred3];
+    dlX_concat=reshape(dlX_concat,[1 size(dlnet.Layers(end).Weights,2), 1, size(dlX_concat,2)]);%the value 128 corresponds the mini batch size
+    dlX_concat=dlarray(single(dlX_concat),'SSCB');
+    dlY_concat=forward(dlnet,dlX_concat);
 %     dlYPred_concat = softmax(dlY_concat);
-dlYPred_concat = sigmoid(dlY_concat);
-loss = crossentropy(dlYPred_concat,Y,'TargetCategories','independent');
-[gradients1] = dlgradient(loss,dlnet1.Learnables);
-
-
+    dlYPred_concat = sigmoid(dlY_concat);
+    loss = crossentropy(dlYPred_concat,Y,'TargetCategories','independent');
+    [gradients1,gradients2,gradients3,gradients] = dlgradient(loss,dlnet1.Learnables,dlnet2.Learnables,dlnet3.Learnables,dlnet.Learnables);
+    
 %     dlYPred1 = forward(dlnet1,dlX1);
 % %     dlYPred2 = forward(dlnet2,dlX2);
 %     dlX_concat=dlYPred1;
@@ -837,6 +841,34 @@ loss = crossentropy(dlYPred_concat,Y,'TargetCategories','independent');
 % %     loss2.Variables
 %     [gradients1] = dlgradient(mean(loss),dlnet1.Learnables);
 end
+ 
+
+% function [gradients1, loss,dlYPred_concat] = modelGradients_demo(dlnet1,dlX1,Y)
+% 
+% %     dlYPred1 = forward(dlnet1,dlX1);
+% %     dlYPred2 = forward(dlnet2,dlX2);
+% %     dlX_concat=[dlYPred1;dlYPred2];
+% %     dlX_concat=reshape(dlX_concat,[1 40, 1, 128]);%the value 128 corresponds the mini batch size
+% dlX_concat=dlarray(single(dlX1),'SSCB');
+% dlY_concat=forward(dlnet1,dlX_concat);
+% %     dlYPred_concat = softmax(dlY_concat);
+% dlYPred_concat = sigmoid(dlY_concat);
+% loss = crossentropy(dlYPred_concat,Y,'TargetCategories','independent');
+% [gradients1] = dlgradient(loss,dlnet1.Learnables);
+% 
+% 
+% %     dlYPred1 = forward(dlnet1,dlX1);
+% % %     dlYPred2 = forward(dlnet2,dlX2);
+% %     dlX_concat=dlYPred1;
+% %     dlX_concat=reshape(dlX_concat,[1 size(Y,1), 1, 128]);%the value 128 corresponds the mini batch size
+% %     dlX_concat=dlarray(single(dlX_concat),'SSCB');
+% %     dlY_concat=dlYPred1;
+% %     dlYPred_concat = softmax(dlY_concat);
+% %     loss = crossentropy(dlYPred_concat,Y);
+% % %     loss2 = array2table(loss);
+% % %     loss2.Variables
+% %     [gradients1] = dlgradient(mean(loss),dlnet1.Learnables);
+% end
 
 function score = labelingFScore(Y,T)
 

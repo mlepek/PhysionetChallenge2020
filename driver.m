@@ -22,6 +22,7 @@ function driver(model_directory,input_directory, output_directory)
     % Iterate over files.
     disp('Predicting 12ECG labels...')
     num_files = length(input_files);
+    %num_files = 100;
     for i = 1:num_files
         disp(['    ', num2str(i), '/', num2str(num_files), '...'])
 

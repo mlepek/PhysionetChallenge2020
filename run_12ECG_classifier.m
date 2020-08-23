@@ -28,7 +28,7 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     %% PRZYGOTOWANIE SYGNALOW ECG 
     
     %PARAMETRY SYGNALOW
-%     fs_fixed = 100; %docelowe sample frequency
+     fs_fixed = 100; %docelowe sample frequency
     max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 10 s %DOWNSAMPLING
 %     data= resample(data',fs_fixed,fs); %resampling do 100Hz
 %     data = data';   
@@ -103,11 +103,12 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     dlRRsignal = dlarray(single(RRsignal),'SSCB');
     
     %% PRZYGOTOWANIE USREDNIONYCH BEATOW
-    averagedBeat = getAveragedBeat(fs_fixed, data,ann);
+    averagedBeat = getAveragedBeat(fs_fixed, data,ann, max_length);
     dlaveragedBeat = dlarray(single(averagedBeat),'SSCB');
     
     %% KLASYFIKACJA
-    
+    numNets = 3;
+    numHiddenDimension = 20;
     labelThreshold = 0.35;
     
         dlY_Train_Pred1 = predict(dlnet1,dlXTrain1);
