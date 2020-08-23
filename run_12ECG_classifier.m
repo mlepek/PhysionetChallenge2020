@@ -33,8 +33,11 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
 %     data= resample(data',fs_fixed,fs); %resampling do 100Hz
 %     data = data';   
         
-    signal_to_predict = preprocessing_before_aggregation(data, fs, max_length);
+    %signal_to_predict = preprocessing_before_aggregation(data, fs, max_length);
+    data = preprocessing_before_aggregation_filtrdown(data, fs);
 
+    
+    
 %     %DATA FILTERING
 %     ECG12filt = [];
 %     % median filter to remove bw
