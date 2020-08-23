@@ -57,6 +57,28 @@ num_files = length(input_files);
 %Total_header=cell(1,num_files);
 Labels_hotmatrix = zeros(num_classes,num_files);
 
+%% zamiana klas CRBBB na RBBB, SVPB na PAC oraz VPB na PVC
+
+    %CRBBB na RBBB
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(5,:) + Labels_hotmatrix(19,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(19,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %SVPB na PAC
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(24,:) + Labels_hotmatrix(13,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(13,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %VPB na PVC
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(27,:) + Labels_hotmatrix(14,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(14,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %usuwanie klas CRBBB, SVPB, VPB
+    Labels_hotmatrix([5,24,27],:) = [];
+    classes([5,24,27]) = [];
+ %%
+
 %%PRZYGOTOWANIE SYGNALOW ECG
 
 %PARAMETRY SYGNALOW
@@ -217,6 +239,7 @@ clear all_signals_matrix_rand
 
 numNets = 3;
 numHiddenDimension = 20;
+numClasses = 24;
 % Net1
 layers1 = [
     imageInputLayer([size(XTrain1,1) size(XTrain1,2) 1],"Name","imageinput","Mean",mean(XTrain1,4))
@@ -421,7 +444,7 @@ dlnet3 = dlnetwork(lgraph);
 % Net
 layers = [
     imageInputLayer([1 numNets*numHiddenDimension 1],"Name","imageinput","Normalization","none")
-    fullyConnectedLayer(27,"Name","fc_2")];
+    fullyConnectedLayer(numClasses,"Name","fc_2")];
 lgraph = layerGraph(layers);
 dlnet = dlnetwork(lgraph);
 
@@ -485,7 +508,7 @@ end
 
 iteration = 0;
 start = tic;
-numClasses = 27;
+
 % Loop over epochs.
 for epoch = 1:numEpochs
     % Shuffle data.
