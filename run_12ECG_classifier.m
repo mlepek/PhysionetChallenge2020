@@ -36,54 +36,43 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     %signal_to_predict = preprocessing_before_aggregation(data, fs, max_length);
     data = preprocessing_before_aggregation_filtrdown(data, fs);
 
-    
-    
-%     %DATA FILTERING
-%     ECG12filt = [];
-%     % median filter to remove bw
-%     for ii=1:12
-%         ECG12filt(ii,:) = movmean(data(ii,:)', 5);
-%     end
-%     ECG12filt2 = ECG12filt;
-%     
-%     for iii=1:size(ECG12filt,1)
-%         ECG12filt2(iii,:) = ECG12filt(iii,:) - movmedian(ECG12filt(iii,:), 50);
-%     end
-%     data = ECG12filt2;   
-%     
-%     data_new = [];
-%     
-%     %PRZYCINANIE DLUZSZYCH SYGNALOW
-%     matrixToExport_withzeros = zeros(12,max_length);
-% %     if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
-% %         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
-% %     else
-% %         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
-% %     end
-% %     %             all_signals_matrix = [all_signals_matrix reshape(matrixToExport_withzeros',[],1)];
-% 
-%      if(size(data,2)>size(matrixToExport_withzeros,2)) %usinanie dluzszych sygnalow
-%         matrixToExport_withzeros(1:12,1:size(matrixToExport_withzeros,2)) = data(:,1:size(matrixToExport_withzeros,2));
-%      else
-%         %kopiowanie za krotkich sygnalow:
-%         if(size(data,2)<size(matrixToExport_withzeros,2))
-%             howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
-%             howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
-%             for j=1:howManyTimes
-%                 data_new = [data_new data];
-%             end
-%            
-%             %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
-%             if(howManyToCopy_residuum>0)
-%                 data_new = [data_new data(:,howManyToCopy_residuum)];
-%             end
-%             data = data_new;   
-%         end
-%        
-%         matrixToExport_withzeros(1:12,1:size(data,2)) = data;
-%     end
-% 
-%     signal_to_predict = reshape(matrixToExport_withzeros',[],1); 
+    %fragment kodu do analizy poszczegolnych fragmentow sygnalu
+    howManyTimes = ceil(size(data,2)/max_length); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+    dataALL = data;
+    YPred_Train_toPerformance_sum = zeros(num_classes,1);
+    dlYPred_concat_train_all = [];
+    for j=1:howManyTimes
+     
+           
+
+       matrixToExport_withzeros = zeros(12,max_length);
+       if(size(data,2)<max_length) %jesli mamy krotszy sygnal niz max_length
+            howManyTimes = floor(size(matrixToExport_withzeros,2)/size(data,2)); %jaka jest wielokrotnosc dlugosci sygnalu (zaokraglona w dol)
+            howManyToCopy_residuum = size(matrixToExport_withzeros,2)-size(data,2)*howManyTimes; %reszta brakujacych probek
+            for j=1:howManyTimes
+                data_new = [data_new data];
+            end
+           
+            %jesli zostaly jakies resztki (po dodaniu wielokrotnosci)
+            if(howManyToCopy_residuum>0)
+                data_new = [data_new data(:,howManyToCopy_residuum)];
+            end
+            data = data_new;   
+            
+            
+       else
+           if(j*max_length<=length(dataALL))
+              data = dataALL(:,1 + (j-1)*max_length:(j)*max_length);
+           else
+              data = dataALL(:,length(dataALL)-max_length-1:end);
+           end
+           
+       end
+       % 
+       
+       matrixToExport_withzeros(1:12,1:size(data,2)) = data;
+     
+    signal_to_predict = reshape(matrixToExport_withzeros',[],1); 
 %     
     X_Train = signal_to_predict;
     
@@ -125,7 +114,20 @@ function [score, label,classes] = run_12ECG_classifier(data, header_data, loaded
     %dlYPred1 = forward(dlnet1,dlXTrain1);
 %     dlYPred1 = predict(dlnet1,dlXTrain1);
     dlYPred_concat_train = sigmoid(dlYPred);
-    YPred_Train_toPerformance = extractdata(dlYPred_concat_train> labelThreshold);
+    
+    %fragment kodu do analizy poszczegolnych fragmentow sygnalu
+    YPred_Train_toPerformance_temp = extractdata(dlYPred_concat_train> labelThreshold);
+    
+    YPred_Train_toPerformance_sum = YPred_Train_toPerformance_sum + YPred_Train_toPerformance_temp;
+    dlYPred_concat_train_all = [dlYPred_concat_train_all ; dlYPred_concat_train]; %sprawdzic wymiary 
+    %
+    end
+    
+    %fragment kodu do analizy poszczegolnych fragmentow sygnalu
+    YPred_Train_toPerformance_sum(YPred_Train_toPerformance_sum>0)=1;
+    YPred_Train_toPerformance = YPred_Train_toPerformance_sum;
+    dlYPred_concat_train = max(dlYPred_concat_train_all);
+    %
     
     score = extractdata(dlYPred_concat_train);
     label =  YPred_Train_toPerformance;
