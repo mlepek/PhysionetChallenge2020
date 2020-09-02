@@ -1,5 +1,8 @@
 function driver(model_directory,input_directory, output_directory)
 
+    persistent scores;
+    persistent labels;
+    persistent true_labels;
     
 	% Find files.
     input_files = {};
@@ -13,7 +16,11 @@ function driver(model_directory,input_directory, output_directory)
         mkdir(output_directory)
     end
 
-    
+    % funkcjonalnosc cross validacji - wybor 1 sekcji z 10
+    wektor_rand = load('input_files_rand_wektor.mat');
+    input_files = input_files( wektor_rand );
+    numer_proby = 0; % zmieniamy rzecznie od 0 do 9
+    input_files = input_files( krok*numer_proby : krok*(numer_proby+1) );
 
     % Load model.
     disp('Loading 12ECG model...')
@@ -33,6 +40,17 @@ function driver(model_directory,input_directory, output_directory)
         [current_score,current_label,classes] = run_12ECG_classifier(data,header_data,model);
 
         save_challenge_predictions(output_directory,file_tmp{1}, current_score, current_label,classes);
+        
+        % get true labels
+        [~,~,single_recording_labels, fs]=get_true_labels([tmp_input_file '.hea'],classes);
+        
+        labels = [labels; current_label];
+        scores = [scores; current_scores];
+        true_labels = [ true_labels; single_recording_labels' ];
+        
+        if i==num_files
+           save('wyniki_numer_0', 'labels', 'scores', 'true_labels'); 
+        end
 	
     end
 

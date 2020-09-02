@@ -14,6 +14,21 @@ for f = dir(input_directory)'
     end
 end
 
+num_files = length(input_files);
+% tutaj dopisujemy funckjonalnosc kros walidacji
+numer_proby = 0; % zmieniamy rzecznie od 0 do 9
+% randomizacja input files, zeby mozna bylo wybierac dowolna sekcje - do
+% wykonania i zapisania tylko 1 raz, pozniej wczytywac
+wektor_rand = randperm( length(input_files) );
+save('input_files_rand_wektor.mat', 'wektor_rand' );
+wektor_rand = load('input_files_rand_wektor.mat');
+input_files = input_files( wektor_rand );
+
+krok = num_files/10;
+% usuwam z wektora do uczenia odpowiednia sekcje
+input_files( numer_proby*krok : (numer_proby+1)*krok ) = [];
+
+
 % read number of unique classes
  %classes_to_save = get_classes(input_directory,input_files); 
 %classes_file = importfile('./dx_mapping_scored.csv'); % to sie
@@ -57,38 +72,21 @@ num_files = length(input_files);
 %Total_header=cell(1,num_files);
 Labels_hotmatrix = zeros(num_classes,num_files);
 
-%% zamiana klas CRBBB na RBBB, SVPB na PAC oraz VPB na PVC
 
-    %CRBBB na RBBB
-    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(5,:) + Labels_hotmatrix(19,:);
-    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
-    Labels_hotmatrix(19,:) = Labels_hotmatrix_RBBB_temp;
-    
-    %SVPB na PAC
-    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(24,:) + Labels_hotmatrix(13,:);
-    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
-    Labels_hotmatrix(13,:) = Labels_hotmatrix_RBBB_temp;
-    
-    %VPB na PVC
-    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(27,:) + Labels_hotmatrix(14,:);
-    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
-    Labels_hotmatrix(14,:) = Labels_hotmatrix_RBBB_temp;
-    
-    %usuwanie klas CRBBB, SVPB, VPB
-    Labels_hotmatrix([5,24,27],:) = [];
-    classes([5,24,27]) = [];
- %%
 
 %%PRZYGOTOWANIE SYGNALOW ECG
 
 %PARAMETRY SYGNALOW
 fs_fixed = 100; %docelowe sample frequency
-max_length = round(110*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 110 s
+max_length = round(30*fs_fixed); %ustawienie maksymalnej dlugosci sygnalu: 110 s
 
 % Iterate over files.
 all_signals_matrix = zeros(12*max_length,num_files,'int16'); %inicjalizacja macierzy z sygnalami do eksportu
 iter=1;
 %num_files = 512;
+
+
+
 for i = 1:num_files
     disp(['    ', num2str(i), '/', num2str(num_files), '...'])
     
@@ -170,6 +168,30 @@ for i = 1:num_files
     end
     
 end
+
+
+%% zamiana klas CRBBB na RBBB, SVPB na PAC oraz VPB na PVC
+
+    %CRBBB na RBBB
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(5,:) + Labels_hotmatrix(19,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(19,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %SVPB na PAC
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(24,:) + Labels_hotmatrix(13,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(13,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %VPB na PVC
+    Labels_hotmatrix_RBBB_temp = Labels_hotmatrix(27,:) + Labels_hotmatrix(14,:);
+    Labels_hotmatrix_RBBB_temp(Labels_hotmatrix_RBBB_temp>0) = 1; 
+    Labels_hotmatrix(14,:) = Labels_hotmatrix_RBBB_temp;
+    
+    %usuwanie klas CRBBB, SVPB, VPB
+    Labels_hotmatrix([5,24,27],:) = [];
+    classes([5,24,27]) = [];
+ %%
+
 
 all_signals_matrix = all_signals_matrix(:,1:iter);
 Labels_hotmatrix = Labels_hotmatrix(:,1:iter);
